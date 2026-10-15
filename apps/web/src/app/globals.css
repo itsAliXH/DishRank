@@ -1,0 +1,237 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --nav-height: 3.5rem;
+    --bottom-nav-height: 4.25rem;
+    --safe-top: env(safe-area-inset-top, 0px);
+    --safe-bottom: env(safe-area-inset-bottom, 0px);
+    --font-sans: 'Figtree', system-ui, sans-serif;
+    --font-display: 'Syne', system-ui, sans-serif;
+    --shadow-soft: 0 1px 0 rgba(20, 24, 32, 0.04), 0 8px 24px -18px rgba(20, 24, 32, 0.22);
+    --shadow-lift: 0 14px 32px -18px rgba(20, 24, 32, 0.38);
+    --ease-soft: cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  html {
+    -webkit-tap-highlight-color: transparent;
+    scroll-behavior: smooth;
+  }
+
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+    padding-top: var(--safe-top);
+    overscroll-behavior-y: none;
+    background-image:
+      radial-gradient(ellipse 90% 55% at 100% -8%, rgba(214, 31, 74, 0.08), transparent 52%),
+      radial-gradient(ellipse 70% 45% at 0% 18%, rgba(27, 58, 95, 0.07), transparent 48%),
+      radial-gradient(ellipse 50% 30% at 50% 100%, rgba(214, 31, 74, 0.03), transparent 60%);
+    background-attachment: fixed;
+  }
+
+  ::selection {
+    background: rgba(214, 31, 74, 0.18);
+    color: #141820;
+  }
+
+  :focus-visible {
+    outline: 2px solid rgba(214, 31, 74, 0.55);
+    outline-offset: 2px;
+  }
+
+  /* Prevent iOS zoom on input focus */
+  @media (max-width: 767px) {
+    input,
+    select,
+    textarea {
+      font-size: 16px;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    html {
+      scroll-behavior: auto;
+    }
+
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}
+
+@layer components {
+  .page-container {
+    @apply mx-auto w-full max-w-[1600px] px-4 sm:px-6 lg:px-10;
+  }
+
+  .page-container-narrow {
+    @apply mx-auto w-full max-w-5xl px-4 sm:px-6 lg:px-8;
+  }
+
+  .page-header {
+    @apply mb-6 md:mb-8;
+  }
+
+  .page-title {
+    @apply text-2xl sm:text-3xl font-bold tracking-tight text-foreground;
+    font-family: var(--font-display), Syne, system-ui, sans-serif;
+  }
+
+  .page-subtitle {
+    @apply mt-1.5 text-sm sm:text-base text-muted-foreground max-w-2xl;
+  }
+
+  .surface-card {
+    @apply rounded-card border border-border/80 bg-surface;
+    box-shadow: var(--shadow-soft);
+    transition:
+      border-color 0.2s var(--ease-soft),
+      box-shadow 0.25s var(--ease-soft),
+      transform 0.25s var(--ease-soft);
+  }
+
+  .surface-card-interactive {
+    @apply surface-card;
+  }
+
+  .surface-card-interactive:hover {
+    @apply border-primary/25;
+    box-shadow: var(--shadow-lift);
+    transform: translateY(-2px);
+  }
+
+  .surface-card-interactive:active {
+    transform: translateY(0) scale(0.99);
+  }
+
+  .mobile-page-pad {
+    padding-bottom: calc(var(--bottom-nav-height) + var(--safe-bottom) + 1rem);
+  }
+
+  .glass-header {
+    @apply bg-surface/80 backdrop-blur-xl border-b border-border/70 supports-[backdrop-filter]:bg-surface/65;
+  }
+
+  .glass-nav {
+    @apply bg-surface/95 backdrop-blur-xl border-t border-border/80 supports-[backdrop-filter]:bg-surface/80;
+  }
+
+  /* Keep Leaflet tiles/controls inside the map card — below modals (z-[1000]+) */
+  .leaflet-container {
+    z-index: 0 !important;
+  }
+
+  .snap-scroll-x {
+    @apply flex gap-4 overflow-x-auto pb-2;
+    scroll-snap-type: x mandatory;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+
+  .snap-scroll-x::-webkit-scrollbar {
+    display: none;
+  }
+
+  .snap-item {
+    scroll-snap-align: start;
+  }
+
+  .hero-bleed {
+    width: 100vw;
+    margin-left: calc(50% - 50vw);
+    margin-right: calc(50% - 50vw);
+  }
+
+  .section-label {
+    @apply text-lg sm:text-xl font-bold tracking-tight text-foreground;
+    font-family: var(--font-display), Syne, system-ui, sans-serif;
+  }
+
+  .empty-state {
+    @apply rounded-card border border-dashed border-border/90 bg-surface/60 px-4 py-10 text-center text-sm text-muted-foreground;
+  }
+
+  .pressable {
+    @apply transition-transform duration-200 ease-soft active:scale-[0.98];
+  }
+
+  .skeleton-shimmer {
+    @apply rounded-card bg-muted relative overflow-hidden;
+    background-image: linear-gradient(
+      110deg,
+      theme('colors.muted.DEFAULT') 30%,
+      rgba(255, 255, 255, 0.55) 50%,
+      theme('colors.muted.DEFAULT') 70%
+    );
+    background-size: 200% 100%;
+    animation: skeleton-shimmer 1.6s linear infinite;
+  }
+
+  /* Route-change progress (top bar) — short transition so it never feels sticky */
+  .nav-progress-bar {
+    background: linear-gradient(
+      90deg,
+      #b8163d 0%,
+      #d61f4a 42%,
+      #f0456a 78%,
+      #ff8aa3 100%
+    );
+    box-shadow:
+      0 0 10px rgba(214, 31, 74, 0.45),
+      0 0 2px rgba(214, 31, 74, 0.8);
+    transition: width 0.16s var(--ease-soft);
+  }
+
+  .nav-progress-chip {
+    box-shadow: var(--shadow-lift);
+  }
+}
+
+@keyframes skeleton-shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+@layer utilities {
+  .pb-safe {
+    padding-bottom: var(--safe-bottom);
+  }
+
+  .pt-safe {
+    padding-top: var(--safe-top);
+  }
+
+  .touch-target {
+    @apply min-h-[44px] min-w-[44px];
+  }
+
+  .stagger-1 {
+    animation-delay: 60ms;
+  }
+  .stagger-2 {
+    animation-delay: 120ms;
+  }
+  .stagger-3 {
+    animation-delay: 180ms;
+  }
+  .stagger-4 {
+    animation-delay: 240ms;
+  }
+  .stagger-5 {
+    animation-delay: 300ms;
+  }
+  .stagger-6 {
+    animation-delay: 360ms;
+  }
+}

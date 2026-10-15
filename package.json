@@ -1,0 +1,25 @@
+{
+  "name": "dishrank",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev:web": "npm run dev --workspace=apps/web",
+    "dev:api": "npm run start:dev --workspace=apps/api",
+    "dev": "concurrently \"npm run dev:api\" \"npm run dev:web\"",
+    "setup:db": "docker compose up -d && npm run db:migrate && npm run db:seed",
+    "build:web": "npm run build --workspace=apps/web",
+    "build:api": "npm run build --workspace=apps/api",
+    "db:generate": "npm run prisma:generate --workspace=apps/api",
+    "db:migrate": "npm run prisma:migrate --workspace=apps/api",
+    "db:seed": "npm run prisma:seed --workspace=apps/api",
+    "docs:pdf": "node docs/generate-pdf.mjs"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2",
+    "marked": "^15.0.12",
+    "puppeteer": "^24.43.1"
+  }
+}

@@ -1,0 +1,94 @@
+# version: "3.9"
+
+services:
+  postgres:
+    image: postgres:16
+
+    container_name: dishrank-postgres
+
+    restart: unless-stopped
+
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: dishrank
+# 5433 is the port on the host machine and 5432 is the port on the container
+    ports:
+      - "5433:5432"
+
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d dishrank"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  mailhog:
+    image: mailhog/mailhog:v1.0.1
+    container_name: dishrank-mailhog
+    restart: unless-stopped
+    ports:
+      - "1025:1025"
+      - "8025:8025"
+
+  api:
+    build:
+      context: .
+      dockerfile: docker/api/Dockerfile
+
+    container_name: dishrank-api
+
+    restart: unless-stopped
+
+    depends_on:
+      postgres:
+        condition: service_healthy
+      mailhog:
+        condition: service_started
+
+    env_file:
+      - ./apps/api/.env.docker
+
+    environment:
+      # Nest/TS watch on Docker Desktop (macOS)
+      CHOKIDAR_USEPOLLING: "true"
+
+    ports:
+      - "3001:3001"
+
+    volumes:
+      - ./apps/api/src:/app/apps/api/src
+      - ./apps/api/prisma:/app/apps/api/prisma
+      - ./packages/shared:/app/packages/shared
+
+  web:
+    build:
+      context: .
+      dockerfile: docker/web/Dockerfile
+
+    container_name: dishrank-web
+
+    depends_on:
+      - api
+
+    env_file:
+      - ./apps/web/.env.docker
+
+    environment:
+      # Next.js file watch on Docker Desktop (macOS)
+      WATCHPACK_POLLING: "true"
+      CHOKIDAR_USEPOLLING: "true"
+
+    ports:
+      - "3000:3000"
+
+    volumes:
+      - ./apps/web/src:/app/apps/web/src
+      - ./apps/web/public:/app/apps/web/public
+      - ./apps/web/next.config.ts:/app/apps/web/next.config.ts
+      - ./packages/shared:/app/packages/shared
+
+volumes:
+  postgres_data:

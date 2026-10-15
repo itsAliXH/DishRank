@@ -1,0 +1,32 @@
+# Dependencies
+node_modules
+**/node_modules
+
+# Git
+.git
+.gitignore
+
+# Build folders
+**/dist
+**/.next
+**/coverage
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+
+# Environment
+.env
+**/.env
+**/.env.local
+
+# macOS
+.DS_Store
+
+# Documentation
+*.docx
+*.pdf
+
+# Docker
+docker-compose.override.yml

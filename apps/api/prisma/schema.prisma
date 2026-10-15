@@ -1,0 +1,213 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  USER
+  RESTAURANT_OWNER
+  ADMIN
+}
+
+enum UserStatus {
+  ACTIVE
+  DEACTIVATED
+  BANNED
+}
+
+enum ApprovalStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum ContentStatus {
+  ACTIVE
+  HIDDEN
+  BLOCKED
+}
+
+model User {
+  id                String               @id @default(cuid())
+  name              String
+  email             String               @unique
+  phone             String?              @unique
+  password          String
+  role              UserRole             @default(USER)
+  status            UserStatus           @default(ACTIVE)
+  createdAt         DateTime             @default(now())
+  reviews           Review[]
+  bookmarks         Bookmark[]
+  ownedRestaurants  Restaurant[]         @relation("RestaurantOwner")
+  passwordResets    PasswordResetToken[]
+
+  @@index([status])
+  @@index([role])
+  @@index([phone])
+}
+
+/// One-time password reset tokens (store hash only; plaintext sent by email).
+model PasswordResetToken {
+  id        String   @id @default(cuid())
+  userId    String
+  tokenHash String   @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+model City {
+  id           String       @id @default(cuid())
+  name         String       @unique
+  province     String
+  /// When false, city is hidden from pickers and its listings are unlisted from public search.
+  /// New cities start disabled until an admin enables them.
+  isActive     Boolean      @default(false)
+  restaurants  Restaurant[]
+
+  @@index([province])
+  @@index([name])
+  @@index([isActive])
+}
+
+/// Canonical dish categories — pickers use this table; free-text typos are avoided.
+model Category {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  dishes    Dish[]
+
+  @@index([name])
+  @@index([isActive])
+}
+
+model Restaurant {
+  id             String         @id @default(cuid())
+  name           String
+  address        String
+  cityId         String
+  city           City           @relation(fields: [cityId], references: [id])
+  lat            Float
+  lng            Float
+  imageUrl       String?
+  /// Set only when DishRank admin assigns a restaurant contact as owner — never on community submit.
+  claimedBy      String?
+  owner          User?          @relation("RestaurantOwner", fields: [claimedBy], references: [id], onDelete: SetNull)
+  status         ContentStatus  @default(ACTIVE)
+  approvalStatus ApprovalStatus @default(APPROVED)
+  /// Allow diners to rate / review dishes at this restaurant.
+  reviewsEnabled Boolean @default(true)
+  /// When reviewsEnabled: true = Verified mode (receipt path); false = General-only mode.
+  receiptVerifyEnabled Boolean  @default(true)
+  /// When Verified mode: true = General + Verified allowed; false = Verified only (receipt required).
+  /// Ignored in General-only mode (always behaves as general).
+  allowGeneralReviews Boolean @default(true)
+  /// When Verified mode: true = diner must be ~1 km from the venue for receipt verify;
+  /// false = receipt can be uploaded from anywhere.
+  requireOnSiteLocation Boolean @default(true)
+  /// Legacy — unused; kept for existing DBs.
+  receiptRequired Boolean @default(false)
+  /// When false, community cannot suggest new dishes for this restaurant.
+  communityDishSubmitEnabled Boolean @default(true)
+  createdAt      DateTime       @default(now())
+  dishes         Dish[]
+
+  @@index([status])
+  @@index([approvalStatus])
+  @@index([approvalStatus, status])
+  @@index([claimedBy])
+  @@index([cityId])
+  @@index([cityId, approvalStatus, status])
+}
+
+model Dish {
+  id           String         @id @default(cuid())
+  name         String
+  restaurantId String
+  restaurant   Restaurant     @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  /// Canonical category FK — source of truth for filtering / admin fixes.
+  categoryId   String
+  categoryRef  Category       @relation(fields: [categoryId], references: [id])
+  /// Denormalized category name for display + trigram search (kept in sync with categoryRef.name).
+  category     String
+  price        Float?
+  avgRating    Float          @default(0)
+  reviewCount  Int            @default(0)
+  imageUrl     String?
+  status       ApprovalStatus @default(APPROVED)
+  visibility   ContentStatus  @default(ACTIVE)
+  createdAt    DateTime       @default(now())
+  reviews      Review[]
+  bookmarks    Bookmark[]
+
+  @@index([name])
+  @@index([category])
+  @@index([categoryId])
+  @@index([visibility])
+  @@index([restaurantId, visibility])
+  @@index([status, visibility])
+  @@index([category, status])
+  @@index([categoryId, status])
+}
+
+model Review {
+  id           String         @id @default(cuid())
+  userId       String
+  user         User           @relation(fields: [userId], references: [id])
+  dishId       String
+  dish         Dish           @relation(fields: [dishId], references: [id], onDelete: Cascade)
+  rating       Int
+  text         String?
+  photos       String[]
+  verified     Boolean        @default(false)
+  status       ApprovalStatus @default(APPROVED)
+  createdAt    DateTime       @default(now())
+  verification Verification?
+
+  @@index([dishId])
+}
+
+model Verification {
+  id              String   @id @default(cuid())
+  reviewId        String   @unique
+  review          Review   @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+  receiptImageUrl String
+  /// Present when on-site location was required / provided; null if “from anywhere”.
+  gpsLat          Float?
+  gpsLng          Float?
+  capturedAt      DateTime @default(now())
+  /// OCR pipeline: PENDING while running, DONE/FAILED after.
+  ocrStatus       String   @default("PENDING")
+  /// Full text extracted from the receipt image.
+  ocrText         String?
+  /// 0–1 mean OCR confidence from the engine (null if failed).
+  ocrConfidence   Float?
+  /// Whether the rated dish name appears on the receipt (heuristic).
+  dishMatched     Boolean?
+  /// 0–1 dish-name match score.
+  matchScore      Float?
+  /// Structured report for admin (tokens, restaurant mention, summary).
+  matchReport     Json?
+  ocrProcessedAt  DateTime?
+}
+
+model Bookmark {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  dishId String
+  dish   Dish   @relation(fields: [dishId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, dishId])
+  @@index([userId])
+  @@index([dishId])
+}
